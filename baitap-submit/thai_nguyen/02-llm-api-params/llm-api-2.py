@@ -7,18 +7,28 @@ client = OpenAI(
 )
 
 assistant_content = ""
-question = input('Q: ')
-chat_completion = client.chat.completions.create(
-    messages=
-    [
-        {
-            "role": "user",
-            "content": question,
-        }
-    ],
-    model="gemma2-9b-it",
-    stream=True
-)
-print('A: ')
-for chunk in chat_completion:
-    print(chunk.choices[0].delta.content or "", end="")
+question = ""
+input_message = []
+while question != "exit":
+    question = input('Q: ')
+    input_message.append({
+        "role": "user",
+        "content": question
+    })
+
+    chat_completion = client.chat.completions.create(
+        messages=input_message,
+        model="gemma2-9b-it",
+        stream=True
+    )
+    full_answer = ""
+    print('A: ')
+    for chunk in chat_completion:
+        content = chunk.choices[0].delta.content or ""
+        print(content, end="")
+        full_answer += content
+
+    input_message.append({
+        "role": "assistant",
+        "content": full_answer
+    })
