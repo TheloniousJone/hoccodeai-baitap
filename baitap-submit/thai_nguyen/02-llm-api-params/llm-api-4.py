@@ -1,37 +1,50 @@
 import os
-import requests
-from bs4 import BeautifulSoup
+import tiktoken
 from openai import OpenAI
-import re
 
-client = OpenAI(
-    base_url="https://api.groq.com/openai/v1",
-    api_key=os.environ.get("GROQ_API_KEY"),
-)
+MAX_TOKENS = 700  # Context window size
 
-URL = "https://tuoitre.vn/cac-nha-khoa-hoc-nga-bao-tu-manh-nhat-20-nam-sap-do-bo-trai-dat-2024051020334196.htm"
-headers = {
-    'User-Agent': "Mozilla/5.0 (X11; CrOS x86_64 8172.45.0) AppleWebKit/537.36 (KHTML, like Gecko) "
-                  "Chrome/51.0.2704.64 Safari/537.36"
-}
-r = requests.get(url=URL, headers=headers)
-soup = BeautifulSoup(r.content, 'html5lib')
-content = ""
-table = soup.find('div', attrs={'itemprop': 'articleBody'})
-for data in table:
-    content += re.sub(r'\s+', ' ', data.text).strip()
+encodings = tiktoken.encoding_for_model("gpt-4o")
 
-chat_completion = client.chat.completions.create(
-    messages=
-    [
-        {
-            "role": "user",
-            "content": f"Dưới đây là nội dung của 1 trang web, hãy giúp tôi tóm tắt nó \n {content}",
-        }
-    ],
-    model="gemma2-9b-it",
-    stream=True
-)
-print('A: ')
-for chunk in chat_completion:
-    print(chunk.choices[0].delta.content or "", end="")
+
+def split_script(text, max_tokens=MAX_TOKENS):
+    """Splits the script into chunks of max_tokens."""
+    tokens = encodings.encode(text)
+    chunks = [tokens[i:i + max_tokens] for i in range(0, len(tokens), max_tokens)]
+    text_chunks = [encodings.decode(chunk) for chunk in chunks]
+    return text_chunks
+
+
+def send_request(input_text):
+    client = OpenAI(
+        base_url="https://api.groq.com/openai/v1",
+        api_key=os.environ.get("GROQ_API_KEY"),
+    )
+    chunks = split_script(input_text)
+    output = ""
+    for chunk in chunks:
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are an export translator from Vietnamese to English."},
+                {"role": "user", "content": chunk}
+            ],
+            model="gemma2-9b-it",
+            stream=True
+        )
+
+        response_text = ""
+        for response in chat_completion:
+            if hasattr(response, "choices") and response.choices:
+                content = response.choices[0].delta.content
+                if content:
+                    response_text += content
+                    print(content, end="", flush=True)  # Print live response
+        output += response_text
+        print("\n")
+    return output
+
+
+input_file = open("Input.txt").read()
+output = send_request(input_file)
+with open("Output.txt", "w") as output_file:
+    output_file.write(output)
