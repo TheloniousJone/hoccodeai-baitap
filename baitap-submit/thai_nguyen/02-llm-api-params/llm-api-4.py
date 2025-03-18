@@ -47,4 +47,6 @@ def send_request(input_text):
 input_file = open("Input.txt").read()
 output = send_request(input_file)
 with open("Output.txt", "w") as output_file:
+    # clear the output file
+    output_file.truncate(0)
     output_file.write(output)
