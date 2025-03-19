@@ -25,7 +25,7 @@ def send_request(input_text):
     for chunk in chunks:
         chat_completion = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "You are an export translator from Vietnamese to English."},
+                {"role": "system", "content": "You are an expert translator from Vietnamese to English."},
                 {"role": "user", "content": chunk}
             ],
             model="gemma2-9b-it",
